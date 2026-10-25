@@ -154,6 +154,54 @@ export function removeAutomationKey(automationId) {
   }
 }
 
+/**
+ * Remove credential copies held by scheduled automations.
+ * A full clear also removes orphaned vault entries whose automation is gone.
+ *
+ * @param {string} [provider] limit the clear to this provider
+ * @returns {Promise<number>} number of affected automations
+ */
+export async function clearAutomationKeys(provider) {
+  const automations = loadAutomations()
+  const vault = getVault()
+  const affected = automations.filter(
+    automation => !provider || automation.provider === provider
+  )
+  const affectedIds = new Set(affected.map(automation => automation.id))
+  const clearedCount = affected.filter(
+    automation => automation.hasKey || Object.hasOwn(vault, automation.id)
+  ).length
+
+  if (provider) {
+    affectedIds.forEach(id => delete vault[id])
+    saveVault(vault)
+  } else {
+    saveVault({})
+  }
+
+  saveAutomations(automations.map(automation =>
+    affectedIds.has(automation.id)
+      ? { ...automation, hasKey: false }
+      : automation
+  ))
+
+  if (isSupabaseConfigured && affectedIds.size > 0) {
+    try {
+      await Promise.all([...affectedIds].map(async automationId => {
+        const { error } = await supabase
+          .from('user_secrets')
+          .delete()
+          .eq('automation_id', automationId)
+        if (error) throw error
+      }))
+    } catch (error) {
+      console.warn('Supabase automation key clear failed:', error)
+    }
+  }
+
+  return clearedCount
+}
+
 // ── Email Notification Dispatch (Resend integration / simulation) ──
 export async function sendResendNotification({ to, automationName, agentName, output, status, duration, error }) {
   const logEntry = {
