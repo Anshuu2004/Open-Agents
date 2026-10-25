@@ -88,6 +88,34 @@ export function recordAnalyticsRun({ agentId, agentName, category, provider, mod
 
 const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+/**
+ * Allocate whole-number percentages with the largest-remainder method.
+ * The returned percentages always total 100 for a non-empty, positive set,
+ * while every item stays within one point of its exact share.
+ */
+export function allocateRoundedPercentages(items) {
+  const total = items.reduce((sum, item) => sum + item.count, 0)
+  if (items.length === 0 || total <= 0) {
+    return items.map((item) => ({ ...item, pct: 0 }))
+  }
+
+  const allocated = items.map((item, index) => {
+    const exact = (item.count / total) * 100
+    return { ...item, pct: Math.floor(exact), remainder: exact % 1, index }
+  })
+  const pointsLeft = 100 - allocated.reduce((sum, item) => sum + item.pct, 0)
+
+  allocated
+    .slice()
+    .sort((a, b) => b.remainder - a.remainder || a.index - b.index)
+    .slice(0, pointsLeft)
+    .forEach((item) => {
+      allocated[item.index].pct += 1
+    })
+
+  return allocated.map(({ remainder: _remainder, index: _index, ...item }) => item)
+}
+
 function computeStats(events, timeRange = 'all') {
   // ── Time-range filtering
   const now = new Date()
@@ -129,8 +157,9 @@ function computeStats(events, timeRange = 'all') {
     const p = e.provider || 'unknown'
     providerCounts[p] = (providerCounts[p] || 0) + 1
   })
-  const providerDistribution = Object.entries(providerCounts)
-    .map(([name, count]) => ({ name, count, pct: Math.round((count / totalRuns) * 100) }))
+  const providerDistribution = allocateRoundedPercentages(
+    Object.entries(providerCounts).map(([name, count]) => ({ name, count }))
+  )
     .sort((a, b) => b.count - a.count)
   const favoriteProvider = providerDistribution[0]?.name || null
 
@@ -152,8 +181,9 @@ function computeStats(events, timeRange = 'all') {
     const cat = e.category || 'Uncategorized'
     categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
   })
-  const categoryDistribution = Object.entries(categoryCounts)
-    .map(([name, count]) => ({ name, count, pct: Math.round((count / totalRuns) * 100) }))
+  const categoryDistribution = allocateRoundedPercentages(
+    Object.entries(categoryCounts).map(([name, count]) => ({ name, count }))
+  )
     .sort((a, b) => b.count - a.count)
 
   // ── Daily runs (last 30 days) for sparkline
