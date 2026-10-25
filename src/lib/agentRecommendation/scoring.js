@@ -5,6 +5,28 @@ import { buildRecommendationReasons } from './explanations.js'
 const normalize = (value) => String(value || '').trim().toLowerCase()
 const searchableText = (agent = {}) => normalize([agent.id, agent.name, agent.description, agent.category, agent.provider].filter(Boolean).join(' '))
 const FREE_TEXT_TOKEN_LIMIT = 12
+const termPatternCache = new Map()
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export function hasTerm(text, term) {
+  const normalizedText = normalize(text)
+  const normalizedTerm = normalize(term)
+  if (!normalizedText || !normalizedTerm) return false
+
+  let pattern = termPatternCache.get(normalizedTerm)
+  if (!pattern) {
+    const optionalPlural = normalizedTerm.endsWith('s') ? '' : 's?'
+    pattern = new RegExp(
+      `(?:^|[^a-z0-9])${escapeRegExp(normalizedTerm)}${optionalPlural}(?=$|[^a-z0-9])`,
+      'i'
+    )
+    termPatternCache.set(normalizedTerm, pattern)
+  }
+  return pattern.test(normalizedText)
+}
 
 export function tokenizeFreeText(text = '') {
   return normalize(text)
@@ -50,7 +72,7 @@ export function scoreAgent(agent = {}, preferences = {}, weights = DEFAULT_RECOM
 
   taskTypes.forEach((taskType) => {
     const keywords = TASK_KEYWORDS[taskType] || [taskType]
-    if (keywords.some((keyword) => text.includes(normalize(keyword)))) {
+    if (keywords.some((keyword) => hasTerm(text, keyword))) {
       score += weights.taskType
       matchedSignals.taskTypes = addSignal(matchedSignals.taskTypes, taskType)
     }
@@ -58,7 +80,7 @@ export function scoreAgent(agent = {}, preferences = {}, weights = DEFAULT_RECOM
 
   extras.forEach((extra) => {
     const keywords = CAPABILITY_KEYWORDS[extra.capability] || []
-    if (keywords.some((keyword) => text.includes(normalize(keyword)))) {
+    if (keywords.some((keyword) => hasTerm(text, keyword))) {
       score += weights.capabilityKeyword ?? 0
       matchedSignals.capabilities = addSignal(matchedSignals.capabilities, extra.id)
     }
@@ -75,10 +97,10 @@ export function scoreAgent(agent = {}, preferences = {}, weights = DEFAULT_RECOM
   }
 
   tokenizeFreeText(preferences.freeTextGoal).forEach((term) => {
-    if (normalize(agent.name).includes(term)) {
+    if (hasTerm(agent.name, term)) {
       score += weights.freeTextName
       matchedSignals.freeTextTerms = addSignal(matchedSignals.freeTextTerms, term)
-    } else if (text.includes(term)) {
+    } else if (hasTerm(text, term)) {
       score += weights.freeTextDescription
       matchedSignals.freeTextTerms = addSignal(matchedSignals.freeTextTerms, term)
     }
@@ -88,17 +110,17 @@ export function scoreAgent(agent = {}, preferences = {}, weights = DEFAULT_RECOM
     const beginnerTerms = ['explainer', 'guide', 'planner', 'study', 'quiz', 'checklist']
     const advancedTerms = ['code', 'sql', 'api', 'architecture', 'audit', 'solidity', 'kubernetes']
     const terms = preferences.experienceLevel === 'advanced' ? advancedTerms : beginnerTerms
-    if (terms.some((term) => text.includes(term))) {
+    if (terms.some((term) => hasTerm(text, term))) {
       score += weights.experience
       matchedSignals.experience = preferences.experienceLevel
     }
   }
 
-  if (preferences.budgetPreference === 'fast' && ['summary', 'reply', 'regex', 'email', 'tone'].some((term) => text.includes(term))) {
+  if (preferences.budgetPreference === 'fast' && ['summary', 'reply', 'regex', 'email', 'tone'].some((term) => hasTerm(text, term))) {
     score += weights.urgency
     matchedSignals.preference = 'fast'
   }
-  if (preferences.budgetPreference === 'capable' && ['audit', 'report', 'plan', 'architecture', 'analysis'].some((term) => text.includes(term))) {
+  if (preferences.budgetPreference === 'capable' && ['audit', 'report', 'plan', 'architecture', 'analysis'].some((term) => hasTerm(text, term))) {
     score += weights.urgency
     matchedSignals.preference = 'capable'
   }
