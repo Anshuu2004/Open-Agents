@@ -13,6 +13,7 @@ import {
 import { useAgents } from '../lib/useAgents'
 import { useProgressiveList } from '../lib/useProgressiveList'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { useFlashNotice } from '../lib/useFlashNotice'
 import {
   MARKETPLACE_CATEGORIES,
   loadListings,
@@ -314,7 +315,7 @@ export default function MarketplacePage() {
   const [category, setCategory] = useState('')
   const [showPublish, setShowPublish] = useState(false)
   const [importedIds, setImportedIds] = useState(new Set())
-  const [notice, setNotice] = useState(null)
+  const { notice, flash } = useFlashNotice()
 
   useEffect(() => {
     setListings(loadListings())
@@ -324,11 +325,6 @@ export default function MarketplacePage() {
     () => filterListings(listings, { search, category }),
     [listings, search, category]
   )
-
-  const flash = (message) => {
-    setNotice(message)
-    setTimeout(() => setNotice(null), 3500)
-  }
 
   const handleImport = (listingId) => {
     const draft = importAgent(listingId)
