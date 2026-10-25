@@ -19,8 +19,13 @@ To verify this yourself, check the files that handle your key:
 
 Both are short and easy to read.
 
-> Note: optional backend features (workflows, scheduled automations) require explicit
-> opt-in before any key is stored server-side, encrypted at rest with row-level security.
+> Note: scheduled automations require explicit opt-in. Their API key is encrypted
+> locally with AES-GCM using a random, non-extractable key held in this browser
+> profile's IndexedDB. The ciphertext is not uploaded to Supabase. This protects
+> against someone copying localStorage alone; it does not protect against XSS or a
+> person who controls the same unlocked browser profile. Clearing site data or using
+> another device requires the key to be entered again. If WebCrypto or IndexedDB is
+> unavailable, the app refuses to store the credential.
 
 ## Note for Contributors
 

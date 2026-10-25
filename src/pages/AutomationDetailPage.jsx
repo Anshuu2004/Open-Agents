@@ -237,7 +237,7 @@ export default function AutomationDetailPage() {
             <p className="text-lg font-bold dark:text-white text-gray-900 tabular-nums">{avgDuration}s</p>
           </div>
           <div className="p-3 dark:bg-surface-hover/50 bg-gray-50">
-            <span className="text-[10px] font-semibold uppercase text-gray-400">pgsodium Vault</span>
+            <span className="text-[10px] font-semibold uppercase text-gray-400">Device Vault</span>
             <p className="text-xs font-bold text-zinc-400 flex items-center gap-1 mt-1">
               <ShieldCheck size={14} /> Encrypted
             </p>

@@ -173,14 +173,14 @@ export default function AutomationsPage() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100">
-                Encrypted Key Storage (pgsodium) & Zero Plaintext Leakage
+                Device-bound Encrypted Key Storage
               </h4>
               <span className="text-[10px] font-semibold px-2 py-0.2 bg-zinc-500/20 text-zinc-500">
                 Active Protection
               </span>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Provider API keys are encrypted at rest with explicit opt-in consent. Standard interactive runs continue to remain browser-only.
+              Automation keys use AES-GCM with a non-extractable key held by this browser profile. Ciphertext stays on this device; re-entry is required on another device or after site data is cleared.
             </p>
           </div>
         </div>
@@ -188,7 +188,7 @@ export default function AutomationsPage() {
         <div className="flex items-center gap-3 shrink-0 text-xs font-mono text-gray-500 dark:text-gray-400">
           <div className="flex items-center gap-1.5 px-3 py-1.5 dark:bg-surface-card bg-white border dark:border-border border-gray-200">
             <Lock size={12} className="text-zinc-400" />
-            <span>AES-GCM / pgsodium</span>
+            <span>Device AES-GCM</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 dark:bg-surface-card bg-white border dark:border-border border-gray-200">
             <Mail size={12} className="text-zinc-400" />

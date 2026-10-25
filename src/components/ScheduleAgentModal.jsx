@@ -170,13 +170,13 @@ export default function ScheduleAgentModal({
             </select>
           </div>
 
-          {/* API Key with pgsodium info */}
+          {/* This scheduler keeps its key only for the current browser session. */}
           <div className="p-3 border dark:border-zinc-500/30 border-zinc-200 bg-zinc-500/5 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-                <ShieldCheck size={14} /> pgsodium Key Storage
+                <ShieldCheck size={14} /> Session-only Key Storage
               </span>
-              <span className="text-[10px] text-zinc-400 font-mono">Encrypted</span>
+              <span className="text-[10px] text-zinc-400 font-mono">Clears with session</span>
             </div>
             <div className="relative">
               <input
@@ -195,7 +195,7 @@ export default function ScheduleAgentModal({
                 onChange={e => setOptInConsent(e.target.checked)}
                 className="mt-0.5 accent-zinc-500"
               />
-              <span>Opt-in consent for encrypted key storage for automated autopilot runs.</span>
+              <span>Keep this key in session storage for automated runs in this browser session.</span>
             </label>
           </div>
 
