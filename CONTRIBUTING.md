@@ -20,6 +20,11 @@ Before picking an issue or proposing a new feature, please review our [Roadmap &
 6. **Push to your fork** - `git push origin feature/your-feature-name`
 7. **Submit a Pull Request** - Describe what you changed and why
 
+Agent definitions are checked directly from the raw registry modules and mounted
+through `AgentRunner` by the test suite. Run `npm test` before submitting a new or
+updated definition; invalid input types, option lists, duplicate IDs, and stale
+`exampleInputs` keys will fail with the affected agent's file and ID.
+
 ## Pull Request Guidelines
 
 - Fill out the PR template completely
