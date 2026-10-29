@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   tokenizeFreeText,
+  hasTerm,
   normalizeScore,
   scoreAgent,
   getMaxPossibleScore,
@@ -15,6 +16,30 @@ import {
 } from './constants.js'
 
 describe('Recommendation Engine Test Suite (Issue #175)', () => {
+  describe('hasTerm', () => {
+    it('rejects keywords embedded inside unrelated words', () => {
+      expect(hasTerm('rapid response', 'api')).toBe(false)
+      expect(hasTerm('blog writer', 'log')).toBe(false)
+      expect(hasTerm('javascript helper', 'script')).toBe(false)
+      expect(hasTerm('latest release', 'test')).toBe(false)
+    })
+
+    it('matches whole terms, phrases, hyphen boundaries, and simple plurals', () => {
+      expect(hasTerm('API design reviewer', 'api')).toBe(true)
+      expect(hasTerm('blog-post-seo', 'blog')).toBe(true)
+      expect(hasTerm('smart contract auditor', 'smart contract')).toBe(true)
+      expect(hasTerm('incident reports', 'report')).toBe(true)
+    })
+
+    it('escapes technical punctuation and handles empty values', () => {
+      expect(hasTerm('C++ and node.js tooling', 'c++')).toBe(true)
+      expect(hasTerm('C++ and node.js tooling', 'node.js')).toBe(true)
+      expect(hasTerm('nodeXjs tooling', 'node.js')).toBe(false)
+      expect(hasTerm('', 'api')).toBe(false)
+      expect(hasTerm('api', '')).toBe(false)
+    })
+  })
+
   // =========================================================================
   // 1. Tokenization: tokenizeFreeText
   // =========================================================================
