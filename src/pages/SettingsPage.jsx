@@ -11,6 +11,7 @@ import {
   clearAllGlobalKeys,
   getAvailableProviders,
 } from '../lib/globalKeys'
+import { clearAutomationKeys } from '../lib/automationsService'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import openaiLogo   from '../assets/openai.svg'
 import anthropicLogo from '../assets/anthropic.svg'
@@ -101,8 +102,9 @@ export default function SettingsPage() {
     setTimeout(() => setSaveMessage(''), 3000)
   }
 
-  const handleClearKey = (provider) => {
+  const handleClearKey = async (provider) => {
     clearGlobalKey(provider)
+    const clearedJobs = await clearAutomationKeys(provider)
     setKeys((prev) => ({ ...prev, [provider]: '' }))
     setSavedStatus((prev) => ({ ...prev, [provider]: false }))
     // If cleared provider was default, reset default
@@ -110,15 +112,24 @@ export default function SettingsPage() {
       clearGlobalKey('defaultProvider')
       setDefaultProvider('')
     }
+    setSaveMessage(
+      clearedJobs > 0
+        ? `Key and ${clearedJobs} scheduled job ${clearedJobs === 1 ? 'copy' : 'copies'} cleared.`
+        : 'Key cleared.'
+    )
+    setTimeout(() => setSaveMessage(''), 3000)
   }
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     clearAllGlobalKeys()
+    const clearedJobs = await clearAutomationKeys()
     setKeys({ openai: '', anthropic: '', gemini: '', openrouter: '' })
     setDefaultProvider('')
     setSavedStatus({ openai: false, anthropic: false, gemini: false, openrouter: false })
     setConfirmClearAll(false)
-    setSaveMessage('All keys cleared.')
+    setSaveMessage(
+      `All saved keys and ${clearedJobs} scheduled job ${clearedJobs === 1 ? 'copy' : 'copies'} cleared.`
+    )
     setTimeout(() => setSaveMessage(''), 3000)
   }
 
@@ -285,16 +296,18 @@ export default function SettingsPage() {
           <div className="flex items-start gap-3 mb-5 p-3 dark:bg-surface-hover bg-gray-50">
             <ShieldCheck size={16} className="text-zinc-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs dark:text-text-secondary text-gray-600 leading-relaxed">
-              🔒 Your API keys are stored only in your browser's localStorage. They are never sent
-              to our servers — because we don't have any. Every API call goes directly from your
-              browser to the provider using your own key.
+              Saved provider keys stay in this browser session. Scheduled jobs keep a separate,
+              encrypted browser copy (and a synced copy when cloud storage is configured). Clearing
+              a key here also removes the matching scheduled-job credentials.
             </p>
           </div>
 
           {confirmClearAll ? (
             <div className="flex flex-col gap-3 p-3 border border-zinc-500/20 bg-zinc-500/5">
               <p className="text-xs font-medium text-zinc-500">
-                Are you sure? This will remove all saved keys and your default provider preference.
+                Are you sure? This removes all saved provider keys, every credential copy held by
+                scheduled jobs, and your default provider preference. Scheduled jobs will stop
+                authenticating until a new key is added.
               </p>
               <div className="flex items-center gap-2">
                 <button
