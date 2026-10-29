@@ -22,6 +22,15 @@ Both are short and easy to read.
 > Note: optional backend features (workflows, scheduled automations) require explicit
 > opt-in before any key is stored server-side, encrypted at rest with row-level security.
 
+### Enforced credential-persistence policy
+
+`src/lib/keyPersistencePolicy.test.jsx` exercises the durable-storage, recorded-run,
+trace, and export boundaries with a sentinel credential. The test fails if plaintext
+reaches `localStorage`, a recorded entry, or an exported file. The versioned encrypted
+automation vault is the only reviewed persistence exception; even there, the plaintext
+sentinel must never appear. New exceptions require an explicit policy-test and security
+documentation change.
+
 ## Note for Contributors
 
 If you are contributing code, please do not add anything that:

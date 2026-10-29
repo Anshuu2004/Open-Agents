@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { stripCredentialFields } from './secretPolicy';
 
 const STORAGE_KEY = 'OpenAgents_history';
 const MAX_HISTORY = 10;
@@ -58,7 +59,7 @@ export const useHistory = () => {
   const saveRun = useCallback((run) => {
     const timestamp = Date.now();
     const newRun = {
-      ...run,
+      ...stripCredentialFields(run),
       id: `${run.agentId}_${timestamp}`,
       timestamp,
     };
