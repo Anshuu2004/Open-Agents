@@ -19,6 +19,7 @@ place (see ROADMAP.md, section 6).
 
 ### Added
 - Changelog maintenance process documented; entries are added as changes ship.
+- Imported marketplace drafts can now be listed, opened, completed, run and removed from `/marketplace/drafts` (#133).
 
 ### Changed
 - None.
