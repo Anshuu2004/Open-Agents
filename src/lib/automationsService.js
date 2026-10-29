@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { runAgent } from './llmAdapter'
 import { recordAnalyticsRun } from './useAnalytics'
+import { CredentialProtectionError, getOrCreateDeviceKey } from './automationKeyStore'
 
 const STORAGE_KEY = 'oa_automations_v2'
 const RUNS_KEY = 'oa_automation_runs_v2'
@@ -13,14 +14,16 @@ export const SCHEDULE_PRESETS = [
   { value: 'weekly', label: 'Every week (Mon 9:00 AM)', cron: '0 9 * * 1', ms: 7 * 24 * 60 * 60 * 1000, description: 'Runs every Monday at 9:00 AM' },
 ]
 
-// ── Encryption Helper (pgsodium-compatible WebCrypto AES-GCM at-rest encryption) ──
-const ENCRYPTION_SALT = 'ila-pgsodium-salt-2026'
+// Legacy constants are used only to migrate pre-v2 ciphertext once. New vault
+// entries use a random, non-extractable device key stored in IndexedDB.
+const LEGACY_ENCRYPTION_SALT = 'ila-pgsodium-salt-2026'
+const ENCRYPTION_VERSION = 'v2:'
 
-async function deriveKey() {
+async function deriveLegacyKey() {
   const enc = new TextEncoder()
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
-    enc.encode(ENCRYPTION_SALT),
+    enc.encode(LEGACY_ENCRYPTION_SALT),
     { name: 'PBKDF2' },
     false,
     ['deriveKey']
@@ -42,10 +45,10 @@ async function deriveKey() {
 export async function encryptSecret(plainText) {
   if (!plainText) return ''
   try {
-    const key = await deriveKey()
-    const iv = window.crypto.getRandomValues(new Uint8Array(12))
+    const key = await getOrCreateDeviceKey()
+    const iv = globalThis.crypto.getRandomValues(new Uint8Array(12))
     const enc = new TextEncoder()
-    const ciphertext = await window.crypto.subtle.encrypt(
+    const ciphertext = await globalThis.crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       key,
       enc.encode(plainText)
@@ -53,39 +56,75 @@ export async function encryptSecret(plainText) {
     const combined = new Uint8Array(iv.length + ciphertext.byteLength)
     combined.set(iv, 0)
     combined.set(new Uint8Array(ciphertext), iv.length)
-    return btoa(String.fromCharCode(...combined))
-  } catch (err) {
-    console.warn('Encryption fallback to base64 encoding:', err)
-    return btoa(plainText)
+    return `${ENCRYPTION_VERSION}${bytesToBase64(combined)}`
+  } catch (error) {
+    if (error instanceof CredentialProtectionError) throw error
+    throw new CredentialProtectionError(
+      'ENCRYPTION_FAILED',
+      'The automation key could not be encrypted and was not saved.',
+      error
+    )
   }
 }
 
-export async function decryptSecret(encryptedBase64) {
-  if (!encryptedBase64) return ''
+export async function decryptSecret(encryptedValue) {
+  if (!encryptedValue) return ''
+  if (typeof encryptedValue !== 'string' || !encryptedValue.startsWith(ENCRYPTION_VERSION)) {
+    throw new CredentialProtectionError(
+      'UNSUPPORTED_CIPHERTEXT',
+      'This saved key uses an old or unsupported format. Please re-enter it.'
+    )
+  }
   try {
-    const binary = atob(encryptedBase64)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-    
-    if (bytes.length <= 12) {
-      return atob(encryptedBase64)
-    }
-
+    const bytes = base64ToBytes(encryptedValue.slice(ENCRYPTION_VERSION.length))
+    if (bytes.length <= 12) throw new Error('Ciphertext is too short')
     const iv = bytes.slice(0, 12)
     const ciphertext = bytes.slice(12)
-    const key = await deriveKey()
-    const decrypted = await window.crypto.subtle.decrypt(
+    const key = await getOrCreateDeviceKey()
+    const decrypted = await globalThis.crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
       key,
       ciphertext
     )
     return new TextDecoder().decode(decrypted)
-  } catch (err) {
-    try {
-      return atob(encryptedBase64)
-    } catch {
-      return ''
-    }
+  } catch (error) {
+    if (error instanceof CredentialProtectionError) throw error
+    throw new CredentialProtectionError(
+      'DECRYPTION_FAILED',
+      'This device can no longer decrypt the saved automation key. Please re-enter it.',
+      error
+    )
+  }
+}
+
+function bytesToBase64(bytes) {
+  let binary = ''
+  bytes.forEach(byte => { binary += String.fromCharCode(byte) })
+  return btoa(binary)
+}
+
+function base64ToBytes(value) {
+  const binary = atob(value)
+  return Uint8Array.from(binary, character => character.charCodeAt(0))
+}
+
+async function decryptLegacySecret(encryptedValue) {
+  try {
+    const bytes = base64ToBytes(encryptedValue)
+    if (bytes.length <= 12) throw new Error('Legacy value is not AES-GCM ciphertext')
+    const key = await deriveLegacyKey()
+    const decrypted = await globalThis.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: bytes.slice(0, 12) },
+      key,
+      bytes.slice(12)
+    )
+    return new TextDecoder().decode(decrypted)
+  } catch (error) {
+    throw new CredentialProtectionError(
+      'LEGACY_KEY_REENTRY_REQUIRED',
+      'This legacy automation key cannot be migrated safely. Please re-enter it.',
+      error
+    )
   }
 }
 
@@ -106,42 +145,39 @@ function saveVault(vault) {
 
 export async function storeAutomationKey(automationId, plainKey) {
   if (!plainKey) return
+  // Encryption must complete before any persistent write. Protection failures
+  // deliberately propagate to the UI; there is no reversible fallback.
   const encrypted = await encryptSecret(plainKey)
   const vault = getVault()
   vault[automationId] = encrypted
   saveVault(vault)
 
-  // If Supabase is configured, also persist to user_secrets with pgsodium
+  // v2 keys are device-bound and are never uploaded. Remove any legacy server
+  // copy left by an earlier version of the app.
   if (isSupabaseConfigured) {
     try {
-      await supabase.from('user_secrets').upsert({
-        automation_id: automationId,
-        encrypted_key: encrypted,
-        updated_at: new Date().toISOString(),
-      })
+      await supabase.from('user_secrets').delete().eq('automation_id', automationId)
     } catch (e) {
-      console.warn('Supabase user_secrets save failed:', e)
+      console.warn('Legacy server key cleanup failed:', e)
     }
   }
 }
 
 export async function retrieveAutomationKey(automationId) {
   const vault = getVault()
-  let encrypted = vault[automationId]
-
-  if (!encrypted && isSupabaseConfigured) {
-    try {
-      const { data } = await supabase
-        .from('user_secrets')
-        .select('encrypted_key')
-        .eq('automation_id', automationId)
-        .single()
-      if (data?.encrypted_key) encrypted = data.encrypted_key
-    } catch (e) {}
-  }
+  const encrypted = vault[automationId]
 
   if (!encrypted) return ''
-  return await decryptSecret(encrypted)
+  if (typeof encrypted === 'string' && encrypted.startsWith(ENCRYPTION_VERSION)) {
+    return await decryptSecret(encrypted)
+  }
+
+  // Migrate only values that authenticate under the old AES-GCM scheme. A
+  // legacy base64 fallback cannot be distinguished safely and requires entry.
+  const plainText = await decryptLegacySecret(encrypted)
+  vault[automationId] = await encryptSecret(plainText)
+  saveVault(vault)
+  return plainText
 }
 
 export function removeAutomationKey(automationId) {
@@ -205,7 +241,7 @@ export async function sendResendNotification({ to, automationName, agentName, ou
                 </div>
               </div>
               <p style="font-size: 12px; color: #737373; text-align: center; margin-top: 30px;">
-                Sent automatically by Open Agents Hub Scheduled Automations. Encrypted with pgsodium.
+                Sent automatically by Open Agents Hub Scheduled Automations. Key protected with device-bound AES-GCM.
               </p>
             </div>
           `,
@@ -300,7 +336,7 @@ const INITIAL_SEED_RUNS = [
 ## Header Hierarchy
 1. \`# 10 Best AI Agents for 2026\`
 2. \`## Why Scheduled Autopilots Change Software Engineering\`
-3. \`### Security & Zero Plaintext Leakage (pgsodium)\`
+3. \`### Security & Device-bound Key Protection (AES-GCM)\`
 4. \`## Conclusion & Next Steps\`
 `,
     error: null,

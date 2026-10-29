@@ -178,7 +178,7 @@ export default function CreateAutomationModal({
                   {initialData ? 'Edit Scheduled Automation' : 'Schedule AI Agent Autopilot'}
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Recurring execution, pgsodium encrypted keys & Resend email reports
+                  Recurring execution, device-encrypted keys & Resend email reports
                 </p>
               </div>
             </div>
@@ -409,17 +409,17 @@ export default function CreateAutomationModal({
             </div>
           </div>
 
-          {/* Section 5: Encrypted Key Storage (pgsodium guarantee) */}
+          {/* Section 5: device-bound encrypted key storage */}
           <div className="p-4 border dark:border-zinc-500/30 border-zinc-200 bg-zinc-500/5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} className="text-zinc-500" />
                 <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                  pgsodium Encrypted Provider Key
+                  Device-encrypted Provider Key
                 </span>
               </div>
               <span className="text-[10px] font-semibold px-2 py-0.5 bg-zinc-500/20 text-zinc-400">
-                Zero Plaintext Leakage
+                AES-GCM Protected
               </span>
             </div>
 
@@ -442,7 +442,7 @@ export default function CreateAutomationModal({
                 className="mt-0.5 border-gray-300 accent-zinc-500 focus:ring-zinc-500/40"
               />
               <span className="text-[11px] text-gray-600 dark:text-gray-400 leading-tight">
-                <strong>Explicit Opt-in Consent:</strong> I authorize encrypting and storing this key server-side using Supabase pgsodium encryption exclusively to execute scheduled background runs for this automation.
+                <strong>Explicit Opt-in Consent:</strong> I authorize encrypting this key with a non-extractable key held by this browser profile. The encrypted value stays on this device and can be used for scheduled runs. This protects copied storage data, but not scripts or people controlling this browser profile.
               </span>
             </label>
           </div>
