@@ -10,6 +10,20 @@ import { storeAutomationKey } from './automationsService'
 import { exportBatchAsCSV, exportBatchAsMarkdown } from './exportBatch'
 import { exportWorkflowAsMarkdown } from './exportMarkdown'
 
+// jsdom has no IndexedDB. The policy under test is that the vault stores only
+// ciphertext, so provide a deterministic device key instead of the keystore.
+vi.mock('./automationKeyStore', async importOriginal => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    getOrCreateDeviceKey: vi.fn(() => globalThis.crypto.subtle.generateKey(
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    )),
+  }
+})
+
 const SENTINEL = 'sk-policy-sentinel-DO-NOT-PERSIST'
 const LEGACY_GLOBAL_KEY = 'OpenAgents_openai_key'
 const AUTOMATION_VAULT = 'oa_encrypted_vault_v2'
