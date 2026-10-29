@@ -6,7 +6,7 @@ export default function ErrorCard({ message }) {
 let color = 'error'
 
 // Only call .includes if message is a string!
-if (typeof message === 'string' && message.includes('Rate limit')) {
+if (typeof message === 'string' && /rate limit|quota used up/i.test(message)) {
   Icon = AlertTriangle
   color = 'warning'
 } else if (
