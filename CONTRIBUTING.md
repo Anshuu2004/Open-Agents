@@ -32,6 +32,9 @@ updated definition; invalid input types, option lists, duplicate IDs, and stale
 - Ensure code follows the project's style guidelines
 - Add or update documentation as needed
 - Ensure all tests pass
+- Add an axe check for new interactive components or page-level flows. The shared
+  `src/test/a11y.js` helper fails on jsdom-supported violations; color contrast
+  still requires a real-browser or manual check.
 
 ## Report Bugs / Feature Requests
 
