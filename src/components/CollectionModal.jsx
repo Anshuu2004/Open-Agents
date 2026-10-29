@@ -2,13 +2,13 @@ import { FolderPlus, X } from 'lucide-react'
 
 export default function CollectionModal({ title, description, value, onChange, error, onClose, onSubmit, submitLabel = 'Save', destructive = false, children }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="collection-modal-title">
       <div className="w-full max-w-md border border-gray-200 bg-white shadow-pop dark:border-border dark:bg-surface-card">
         <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-5 dark:border-border">
           <div className="flex items-start gap-3">
             <div className=" bg-zinc-500/10 p-2 text-zinc-600 dark:text-zinc-300"><FolderPlus size={18} /></div>
             <div>
-              <h2 className="text-base font-semibold text-gray-900 dark:text-text-primary">{title}</h2>
+              <h2 id="collection-modal-title" className="text-base font-semibold text-gray-900 dark:text-text-primary">{title}</h2>
               {description && <p className="mt-1 text-sm text-gray-500 dark:text-text-secondary">{description}</p>}
             </div>
           </div>

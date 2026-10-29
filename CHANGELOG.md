@@ -19,6 +19,7 @@ place (see ROADMAP.md, section 6).
 
 ### Added
 - Changelog maintenance process documented; entries are added as changes ship.
+- Collections can be exported to a JSON file, imported back with a validated preview, and duplicated from the Collections page (#151).
 
 ### Changed
 - None.
